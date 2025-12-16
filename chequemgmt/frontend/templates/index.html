@@ -1,0 +1,83 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Cheque Clearance Department - Admin Dashboard</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="container mt-5">
+
+    <header class="bg-primary text-white p-4 rounded mb-4">
+        <h1 class="text-center">Cheque Clearance Department</h1>
+    </header>
+
+    <h2 class="mb-3">Create a new Cheque Entry</h2>
+    <div class="alert alert-info" role="alert">
+    Add cheque number and the associated branch manager approval status below.
+    </div>
+
+    <form action="/add" method="post">
+    <div class="row g-3 align-items-center mb-4">
+        <div class="col-md-3">
+            <input type="text" class="form-control" name="chequeNo" placeholder="Cheque No" required>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Approved by Manager:</label><br>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="approvalGranted" id="approvalYes" value="true" required>
+                <label class="form-check-label" for="approvalYes">Yes</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="approvalGranted" id="approvalNo" value="false">
+                <label class="form-check-label" for="approvalNo">No</label>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <input type="submit" class="btn btn-dark w-100" value="Submit!">
+        </div>
+    </div>
+    </form>
+
+
+    {% if cheque_data %}
+    <h2 class="mb-3">Cheques Pending Clearance</h2>
+    <div class="alert alert-secondary" role="alert">
+    Cheques pending action listed below!
+    </div>
+    <table class="table table-striped table-hover">
+        <thead class="table-primary">
+            <tr>
+                <th>Cheque No</th>
+                <th>Approval Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in cheque_data %}
+            <tr>
+                <td>{{ entry.chequeNo }}</td>
+                <td>{{ 'Yes' if entry.approvalStatus else 'No' }}</td>
+                <td>
+                    <form action="/delete" method="post" class="d-inline">
+                        <input type="hidden" name="chequeNo" value="{{ entry.chequeNo }}" />
+                        <button type="submit" class="btn btn-danger btn-sm">Clear Cheque</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <h3 class="text-muted">No cheques pending clearance.</h3>
+    {% endif %}
+
+</div>
+
+<!-- Bootstrap 5 JS (Optional for components like modals/dropdowns) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
