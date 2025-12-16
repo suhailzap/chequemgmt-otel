@@ -1,0 +1,61 @@
+Let's now set up the application for auto-instrumentation.
+
+First, create a virtual environment to run the frontend code:
+
+python3 -m venv venv
+source venv/bin/activate
+
+Navigate to the frontend folder:
+
+cd /root/code/chequemgmt/frontend
+
+Install the required libraries within the frontend folder:
+
+pip install -r requirements.txt
+
+Then, install the opentelemetry-distro, opentelemetry-exporter-otlp, and other required libraries:
+
+pip install \
+  opentelemetry-api \
+  opentelemetry-sdk \
+  opentelemetry-exporter-otlp \
+  opentelemetry-instrumentation-flask \
+  opentelemetry-instrumentation-requests \
+  opentelemetry-distro
+
+Let's now have opentelemetry scan our code and find all the packages that support instrumentation and automatically install their respective instrumentation libraries:
+
+opentelemetry-bootstrap -a install
+
+Inside venv/lib/python3.12/site-packages, verify that the instrumentation libraries for Flask and requests have been installed.
+
+For example, for Flask, the opentelemetry_instrumentation_flask-xx package should have been automatically installed.
+
+Export the following environment variables before you start with the application in the next task:
+
+export OTEL_PYTHON_AUTO_INSTRUMENTATION_ENABLED=true
+export OTEL_EXPORTER_OTLP_INSECURE=true
+export OTEL_TRACES_SAMPLER=always_on
+
+Start the frontend Python application with the following configuration to enable auto-instrumentation:
+
+    Trace Exporters: console, otlp
+    Metrics Exporter: console
+    Service Name: frontend-service
+    Exporter OTLP endpoint: localhost:4317
+
+
+Note: Ensure that it keeps on running! For other tasks, navigate to a new terminal.
+
+First, navigate to the directory frontend:
+
+cd /root/code/chequemgmt/frontend
+
+Then, run the following command:
+
+opentelemetry-instrument \
+      --traces_exporter console,otlp \
+    --metrics_exporter console \
+      --exporter_otlp_endpoint=localhost:4317 \
+      --service_name=frontend-service \
+      python3 app.py
