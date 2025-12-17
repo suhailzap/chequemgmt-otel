@@ -1,3 +1,83 @@
+# OR Install OpenJDK 21 (latest LTS)
+sudo apt install openjdk-21-jdk -y
+
+
+    Create missing directories: Sometimes, these errors occur because directories don't exist.
+
+sudo mkdir -p /usr/share/man/man1
+
+    Reconfigure the packages:
+
+sudo dpkg --configure -a
+
+    Fix broken dependencies:
+
+sudo apt -f install
+
+After that, try reinstalling OpenJDK:
+
+sudo apt install --reinstall openjdk-21-jdk
+
+
+sudo apt install maven -y
+
+
+mvn clean package -DskipTests
+
+java -jar target/chequebackend-0.0.1-SNAPSHOT.jar
+
+PSQL:
+sudo apt install postgresql -y
+sudo systemctl start postgresql
+sudo -u postgres psql
+
+    Create the database mydb if it doesn't exist:
+
+CREATE DATABASE mydb;
+
+    Create the user kodekloud with password kkpass123:
+
+CREATE USER kodekloud WITH PASSWORD 'kkpass123';
+
+    Grant the user access to the database:
+
+GRANT ALL PRIVILEGES ON DATABASE mydb TO kodekloud;
+
+sudo -u postgres psql -d mydb
+
+CREATE TABLE cheque (
+    cheque_no VARCHAR(20) PRIMARY KEY,
+    approval_granted BOOLEAN NOT NULL
+);
+
+GRANT ALL PRIVILEGES ON TABLE cheque TO kodekloud;
+
+
+PYTHON:
+
+sudo apt install python3 python3-pip python3-venv -y
+# Create virtual environment
+python3 -m venv myenv
+
+# Activate it
+source myenv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+
+# Deactivate when done
+deactivate
+
+
+
+
+
+
+
+
+
+
+
 Let's now set up the application for auto-instrumentation.
 
 First, create a virtual environment to run the frontend code:
