@@ -45,11 +45,10 @@ GRANT ALL PRIVILEGES ON DATABASE mydb TO kodekloud;
 
 sudo -u postgres psql -d mydb
 
-CREATE TABLE cheque (
-    cheque_no VARCHAR(20) PRIMARY KEY,
-    approval_granted BOOLEAN NOT NULL
+CREATE TABLE IF NOT EXISTS cheque (
+  cheque_no VARCHAR(20) PRIMARY KEY,
+  approval_granted BOOLEAN NOT NULL
 );
-
 GRANT ALL PRIVILEGES ON TABLE cheque TO kodekloud;
 
 
