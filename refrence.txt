@@ -1,5 +1,5 @@
 # OR Install OpenJDK 21 (latest LTS)
-sudo apt install openjdk-21-jdk -y
+sudo apt install openjdk-21-jdk maven postgresql python3 python3-pip python3-venv  -y
 
 
     Create missing directories: Sometimes, these errors occur because directories don't exist.
