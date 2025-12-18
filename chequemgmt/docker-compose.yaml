@@ -1,6 +1,33 @@
+# version: "3.9"
+
+# services:
+#   otel-collector:
+#     image: otel/opentelemetry-collector-contrib:0.135.0
+#     container_name: otel-collector
+#     ports:
+#       - "4317:4317"   # OTLP gRPC
+#       - "4318:4318"   # OTLP HTTP
+#     volumes:
+#       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+#     command: ["--config", "/etc/otel-collector-config.yaml"]
+#     depends_on:
+#       - jaeger
+
+#   jaeger:
+#     image: jaegertracing/all-in-one:1.57
+#     container_name: jaeger
+#     ports:
+#       - "6831:6831/udp"   # Jaeger agent – thrift compact
+#       - "6832:6832/udp"   # Jaeger agent – thrift binary
+#       - "5778:5778"       # Agent configs
+#       - "16686:16686"     # Jaeger UI (http://localhost:16686)
+#       - "14268:14268"     # Collector HTTP (thrift / OTLP)
+#       - "14250:14250"     # Collector gRPC
+
 version: "3.9"
 
 services:
+  # OpenTelemetry Collector
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.135.0
     container_name: otel-collector
@@ -12,14 +39,61 @@ services:
     command: ["--config", "/etc/otel-collector-config.yaml"]
     depends_on:
       - jaeger
+      - prometheus
+      - loki
 
+  # Jaeger
   jaeger:
     image: jaegertracing/all-in-one:1.57
     container_name: jaeger
     ports:
-      - "6831:6831/udp"   # Jaeger agent – thrift compact
-      - "6832:6832/udp"   # Jaeger agent – thrift binary
-      - "5778:5778"       # Agent configs
-      - "16686:16686"     # Jaeger UI (http://localhost:16686)
-      - "14268:14268"     # Collector HTTP (thrift / OTLP)
-      - "14250:14250"     # Collector gRPC
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+
+  # Loki
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    user: root
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - ./loki-storage:/loki
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:12.0.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_LOG_LEVEL=info
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+    depends_on:
+      - prometheus
+      - loki
+      - jaeger
+
+volumes:
+  grafana-storage:
