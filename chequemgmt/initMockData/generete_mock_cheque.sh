@@ -3,7 +3,7 @@
 RETRY_INTERVAL=5
 
 while true; do
-  chequeNo=$(tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 10)
+  chequeNo=$(head -c 64 /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 10)
   approvalGranted=$(shuf -e true false -n 1)
 
   http_code=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
