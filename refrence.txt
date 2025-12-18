@@ -141,3 +141,8 @@ opentelemetry-instrument \
       --exporter_otlp_endpoint=localhost:4317 \
       --service_name=frontend-service \
       python3 app.py
+
+
+mkdir -p ./loki-storage/wal ./loki-storage/index ./loki-storage/chunks
+sudo chown -R 10001:10001 ./loki-storage
+sudo chmod -R 775 ./loki-storage
