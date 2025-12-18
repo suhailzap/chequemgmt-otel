@@ -146,3 +146,10 @@ opentelemetry-instrument \
 mkdir -p ./loki-storage/wal ./loki-storage/index ./loki-storage/chunks
 sudo chown -R 10001:10001 ./loki-storage
 sudo chmod -R 775 ./loki-storage
+
+builx:
+
+mkdir -p ~/.docker/cli-plugins
+curl -Lo ~/.docker/cli-plugins/docker-buildx \
+  https://github.com/docker/buildx/releases/latest/download/buildx-v0.30.1.linux-amd64
+chmod +x ~/.docker/cli-plugins/docker-buildx
