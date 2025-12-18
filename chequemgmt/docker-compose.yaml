@@ -27,6 +27,46 @@
 version: "3.9"
 
 services:
+  # PostgreSQL
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: kodekloud
+      POSTGRES_PASSWORD: kkpass123
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init/postgres-init.sql:/docker-entrypoint-initdb.d/postgres-init.sql:ro
+      - postgres-data:/var/lib/postgresql/data
+
+  # Backend Java App
+  backend:
+    image: suhailsap06/backend-java:latest
+    container_name: backend
+    depends_on:
+      - postgres
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mydb
+      SPRING_DATASOURCE_USERNAME: kodekloud
+      SPRING_DATASOURCE_PASSWORD: kkpass123
+    ports:
+      - "8085:8085"
+
+  # Frontend Python App
+  frontend:
+    image: suhailsap06/frontend-python:latest
+    container_name: frontend
+    depends_on:
+      - backend
+    environment:
+      BACKEND_URL: http://backend:8085/cheques
+    ports:
+      - "5000:5000"
+
   # OpenTelemetry Collector
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.135.0
@@ -84,9 +124,9 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_LOG_LEVEL=info
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_LOG_LEVEL: info
     volumes:
       - grafana-storage:/var/lib/grafana
       - ./datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
@@ -97,3 +137,6 @@ services:
 
 volumes:
   grafana-storage:
+  postgres-data:
+
+
