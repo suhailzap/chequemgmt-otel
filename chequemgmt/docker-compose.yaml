@@ -24,8 +24,6 @@
 #       - "14268:14268"     # Collector HTTP (thrift / OTLP)
 #       - "14250:14250"     # Collector gRPC
 
-version: "3.9"
-
 services:
   # PostgreSQL
   postgres:
@@ -44,7 +42,7 @@ services:
 
   # Backend Java App
   backend:
-    image: suhailsap06/backend-java:latest
+    image: suhailsap06/backend-java:v1
     container_name: backend
     depends_on:
       - postgres
@@ -58,7 +56,7 @@ services:
 
   # Frontend Python App
   frontend:
-    image: suhailsap06/frontend-python:latest
+    image: suhailsap06/frontend-python:v1
     container_name: frontend
     depends_on:
       - backend
