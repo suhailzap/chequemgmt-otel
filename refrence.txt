@@ -36,6 +36,10 @@ sudo -u postgres psql
 
     Create the database mydb if it doesn't exist:
 
+
+
+sudo -u postgres psql -d mydb
+
 CREATE DATABASE mydb;
 
     Create the user kodekloud with password kkpass123:
@@ -46,22 +50,20 @@ CREATE USER kodekloud WITH PASSWORD 'kkpass123';
 
 GRANT ALL PRIVILEGES ON DATABASE mydb TO kodekloud;
 
-sudo -u postgres psql -d mydb
-
 CREATE TABLE IF NOT EXISTS cheque (
   cheque_no VARCHAR(20) PRIMARY KEY,
   approval_granted BOOLEAN NOT NULL
 );
 GRANT ALL PRIVILEGES ON TABLE cheque TO kodekloud;
 
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO kodekloud;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO kodekloud;
 
 PYTHON:
 
 sudo apt install python3 python3-pip python3-venv -y
 # Create virtual environment
 python3 -m venv myenv
-
-# Activate it
 source myenv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
