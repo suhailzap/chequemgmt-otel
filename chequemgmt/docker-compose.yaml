@@ -100,8 +100,14 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--storage.tsdb.retention.time=200h"
+      - "--web.enable-lifecycle"
 
   # Loki
   loki:
@@ -123,6 +129,7 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_LOG_LEVEL: info
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
     volumes:
       - grafana-storage:/var/lib/grafana
       - ./datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
@@ -131,7 +138,31 @@ services:
       - loki
       - jaeger
 
+  # cAdvisor - ADDED HERE
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      - prometheus
+    networks:
+      - default
+
 volumes:
   grafana-storage:
   postgres-data:
+  prometheus-data:
+
 
