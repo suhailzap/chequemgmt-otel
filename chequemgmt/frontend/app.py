@@ -18,7 +18,9 @@ resource = Resource(attributes={"service.name": "flask-app"})
 trace.set_tracer_provider(TracerProvider(resource=resource))
 tracer = trace.get_tracer(__name__)
 
-otlp_exporter = OTLPSpanExporter(endpoint="localhost:4317", insecure=True)
+
+
+otlp_exporter = OTLPSpanExporter(endpoint="OTEL_EXPORTER_OTLP_ENDPOINT", insecure=True)
 span_processor = BatchSpanProcessor(otlp_exporter)
 trace.get_tracer_provider().add_span_processor(span_processor)
 
