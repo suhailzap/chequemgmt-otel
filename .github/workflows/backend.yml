@@ -30,12 +30,12 @@ jobs:
 
       - name: Build backend JAR
         run: |
-          cd backend
+          cd chequemgmt/backend
           ./mvnw clean package -DskipTests
 
       - name: Run backend tests
         run: |
-          cd backend
+          cd chequemgmt/backend
           ./mvnw test
 
       - name: Log in to Docker Hub
