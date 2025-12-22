@@ -8,124 +8,87 @@ on:
 
 env:
   DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
-  DOCKER_HUB_ACCESS_TOKEN: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+  DOCKER_IMAGE: ${{ secrets.DOCKER_HUB_USERNAME }}/cheque-frontend
 
 jobs:
   build-frontend:
-    name: Build, Test, Scan & Push Frontend
+    name: Build, Test, Scan & Push
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
 
     steps:
-      # -------------------------------
-      # Checkout repo
-      # -------------------------------
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # -------------------------------
-      # Set up Python 3.11
-      # -------------------------------
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          # Built-in pip caching
+          cache: 'pip'
+          cache-dependency-path: 'chequemgmt/frontend/requirements.txt'
 
-      # -------------------------------
-      # Cache pip dependencies
-      # -------------------------------
-      - name: Cache pip
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('chequemgmt/frontend/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      # -------------------------------
-      # Install Python dependencies
-      # -------------------------------
       - name: Install dependencies
         run: |
           cd chequemgmt/frontend
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install \
-            opentelemetry-api \
-            opentelemetry-sdk \
-            opentelemetry-exporter-otlp \
-            opentelemetry-instrumentation-flask \
-            opentelemetry-instrumentation-requests \
-            opentelemetry-distro
+          # It is best practice to include OTel deps in requirements.txt 
+          # but we'll keep them here as per your original script
+          pip install opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp \
+                      opentelemetry-instrumentation-flask opentelemetry-instrumentation-requests \
+                      opentelemetry-distro
           opentelemetry-bootstrap -a install
 
-      # -------------------------------
-      # Run frontend tests
-      # -------------------------------
       - name: Run Tests
         run: |
           cd chequemgmt/frontend
           pytest tests/ || echo "No tests found, skipping"
 
-      # -------------------------------
-      # Docker login
-      # -------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Docker Login
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ env.DOCKER_HUB_USERNAME }}
-          password: ${{ env.DOCKER_HUB_ACCESS_TOKEN }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      # -------------------------------
-      # Setup Docker Buildx for multi-arch
-      # -------------------------------
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      # Step 1: Build & Load (Single Arch) for local testing and scanning
+      - name: Build Local Image for Scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: chequemgmt/frontend
+          load: true
+          tags: ${{ env.DOCKER_IMAGE }}:test-scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # -------------------------------
-      # Build Docker image (multi-arch)
-      # -------------------------------
-      - name: Build Docker image
+      # Step 2: Health Check on the built image
+      - name: Test Container Health
         run: |
-          IMAGE_TAG_LATEST=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest
-          IMAGE_TAG_SHA=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:${{ github.sha }}
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            -t $IMAGE_TAG_LATEST \
-            -t $IMAGE_TAG_SHA \
-            chequemgmt/frontend \
-            --load
-
-      # -------------------------------
-      # Test Docker image
-      # -------------------------------
-      - name: Test Docker image
-        run: |
-          IMAGE_TAG=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest
-          docker run --rm -d -p 5000:5000 --name test-frontend $IMAGE_TAG
-          sleep 15
-          curl -f http://localhost:5000/health || exit 1
+          docker run --rm -d -p 5000:5000 --name test-frontend ${{ env.DOCKER_IMAGE }}:test-scan
+          sleep 10
+          curl -f http://localhost:5000/health || (docker logs test-frontend && exit 1)
           docker stop test-frontend
 
-      # # -------------------------------
-      # # Scan Docker image with Trivy
-      # # -------------------------------
-      # - name: Scan Docker image
-      #   uses: aquasecurity/trivy-action@v1
-      #   with:
-      #     image-ref: ${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest
-      #     format: table
-      #     exit-code: 1
-      #     ignore-unfixed: true
+      # Step 3: Security Scan (Trivy)
+      - name: Scan Docker Image (Trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.DOCKER_IMAGE }}:test-scan
+          format: table
+          exit-code: 1
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
 
-      # -------------------------------
-      # Push Docker image to Docker Hub
-      # -------------------------------
-      - name: Push Docker image
-        run: |
-          IMAGE_TAG_LATEST=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest
-          IMAGE_TAG_SHA=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:${{ github.sha }}
-          docker push $IMAGE_TAG_LATEST
-          docker push $IMAGE_TAG_SHA
+      # Step 4: Final Push (Multi-Arch)
+      - name: Build and Push Multi-Arch Image
+        uses: docker/build-push-action@v5
+        with:
+          context: chequemgmt/frontend
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:latest
+            ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
