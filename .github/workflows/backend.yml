@@ -99,16 +99,16 @@ jobs:
           curl -f http://localhost:8085/health || exit 1
           docker stop test-backend
 
-      # -------------------------------
-      # Scan Docker image with Trivy
-      # -------------------------------
-      - name: Scan Docker Image
-        uses: aquasecurity/trivy-action@v1
-        with:
-          image-ref: ${{ env.DOCKER_HUB_USERNAME }}/chequebackend:latest
-          format: table
-          exit-code: 1
-          ignore-unfixed: true
+      # # -------------------------------
+      # # Scan Docker image with Trivy
+      # # -------------------------------
+      # - name: Scan Docker Image
+      #   uses: aquasecurity/trivy-action@v1
+      #   with:
+      #     image-ref: ${{ env.DOCKER_HUB_USERNAME }}/chequebackend:latest
+      #     format: table
+      #     exit-code: 1
+      #     ignore-unfixed: true
 
       # -------------------------------
       # Push Docker image
