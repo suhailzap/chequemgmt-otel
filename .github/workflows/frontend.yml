@@ -1,0 +1,60 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    paths:
+      - 'frontend/**'
+  workflow_dispatch:
+
+env:
+  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+  DOCKER_HUB_ACCESS_TOKEN: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+jobs:
+  build-frontend:
+    name: Build, Test & Push Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          pytest tests/
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKER_HUB_USERNAME }}
+          password: ${{ env.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Build frontend Docker image
+        run: |
+          docker build -t ${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest frontend
+
+      - name: Test frontend Docker image
+        run: |
+          docker run --rm -d -p 5000:5000 --name test-frontend ${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest
+          sleep 10
+          curl -f http://localhost:5000/health || exit 1
+          docker stop test-frontend
+
+      - name: Push frontend image to Docker Hub
+        run: |
+          docker push ${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest
