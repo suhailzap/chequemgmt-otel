@@ -50,3 +50,4 @@ EXPOSE 8085
 ENTRYPOINT ["java", \
   "-javaagent:/app/opentelemetry-javaagent.jar", \
   "-jar", "/app/app.jar"]
+
