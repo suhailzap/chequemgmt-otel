@@ -18,3 +18,9 @@ datasources:
     access: proxy
     url: http://jaeger:16686
     isDefault: false
+
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:14268
+    isDefault: false
