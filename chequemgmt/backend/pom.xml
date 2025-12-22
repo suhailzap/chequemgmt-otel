@@ -57,7 +57,7 @@
         <dependency>
             <groupId>org.apache.tomcat.embed</groupId>
             <artifactId>tomcat-embed-core</artifactId>
-            <version>10.1.42</version> <!-- Fixed version for DoS/HTTP2 CVEs -->
+            <version>11.0.10</version> <!-- Fixed version for DoS/HTTP2 CVEs -->
         </dependency>
         
         <!-- Development -->
