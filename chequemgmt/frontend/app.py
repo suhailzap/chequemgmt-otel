@@ -1,7 +1,15 @@
+# from flask import Flask, render_template, request, jsonify, redirect, url_for
+# import logging
+# import requests
+# import os
+
+
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 import logging
 import requests
 import os
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
 
 # --- ADD THESE IMPORTS ---
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter
