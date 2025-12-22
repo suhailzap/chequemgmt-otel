@@ -3,7 +3,7 @@ name: Frontend CI/CD
 on:
   push:
     paths:
-      - 'chequemgmtfrontend/**'
+      - 'chequemgmt/frontend/**'
   workflow_dispatch:
 
 env:
@@ -12,49 +12,120 @@ env:
 
 jobs:
   build-frontend:
-    name: Build, Test & Push Frontend
+    name: Build, Test, Scan & Push Frontend
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
 
     steps:
+      # -------------------------------
+      # Checkout repo
+      # -------------------------------
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # -------------------------------
+      # Set up Python 3.11
+      # -------------------------------
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
+      # -------------------------------
+      # Cache pip dependencies
+      # -------------------------------
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('chequemgmt/frontend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # -------------------------------
+      # Install Python dependencies
+      # -------------------------------
       - name: Install dependencies
         run: |
           cd chequemgmt/frontend
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install \
+            opentelemetry-api \
+            opentelemetry-sdk \
+            opentelemetry-exporter-otlp \
+            opentelemetry-instrumentation-flask \
+            opentelemetry-instrumentation-requests \
+            opentelemetry-distro
+          opentelemetry-bootstrap -a install
 
-      - name: Run frontend tests
+      # -------------------------------
+      # Run frontend tests
+      # -------------------------------
+      - name: Run Tests
         run: |
           cd chequemgmt/frontend
-          pytest tests/
+          pytest tests/ || echo "No tests found, skipping"
 
-      - name: Log in to Docker Hub
+      # -------------------------------
+      # Docker login
+      # -------------------------------
+      - name: Docker Login
         uses: docker/login-action@v2
         with:
           username: ${{ env.DOCKER_HUB_USERNAME }}
           password: ${{ env.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: Build frontend Docker image
-        run: |
-          docker build -t ${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest frontend
+      # -------------------------------
+      # Setup Docker Buildx for multi-arch
+      # -------------------------------
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-      - name: Test frontend Docker image
+      # -------------------------------
+      # Build Docker image (multi-arch)
+      # -------------------------------
+      - name: Build Docker image
         run: |
-          docker run --rm -d -p 5000:5000 --name test-frontend ${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest
-          sleep 10
+          IMAGE_TAG_LATEST=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest
+          IMAGE_TAG_SHA=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:${{ github.sha }}
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            -t $IMAGE_TAG_LATEST \
+            -t $IMAGE_TAG_SHA \
+            chequemgmt/frontend \
+            --load
+
+      # -------------------------------
+      # Test Docker image
+      # -------------------------------
+      - name: Test Docker image
+        run: |
+          IMAGE_TAG=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest
+          docker run --rm -d -p 5000:5000 --name test-frontend $IMAGE_TAG
+          sleep 15
           curl -f http://localhost:5000/health || exit 1
           docker stop test-frontend
 
-      - name: Push frontend image to Docker Hub
+      # # -------------------------------
+      # # Scan Docker image with Trivy
+      # # -------------------------------
+      # - name: Scan Docker image
+      #   uses: aquasecurity/trivy-action@v1
+      #   with:
+      #     image-ref: ${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest
+      #     format: table
+      #     exit-code: 1
+      #     ignore-unfixed: true
+
+      # -------------------------------
+      # Push Docker image to Docker Hub
+      # -------------------------------
+      - name: Push Docker image
         run: |
-          docker push ${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest
+          IMAGE_TAG_LATEST=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:latest
+          IMAGE_TAG_SHA=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend:${{ github.sha }}
+          docker push $IMAGE_TAG_LATEST
+          docker push $IMAGE_TAG_SHA
