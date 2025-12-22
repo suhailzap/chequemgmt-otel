@@ -33,6 +33,16 @@ REQUEST_COUNTER = Counter('flask_app_requests_total', 'Total HTTP requests proce
 ADD_CHEQUE_COUNTER = Counter('flask_app_add_cheque_total', 'Total number of cheques added successfully')
 DELETE_CHEQUE_COUNTER = Counter('flask_app_delete_cheque_total', 'Total number of cheques deleted successfully')
 
+
+@app.route('/health')
+def health_check():
+    """Health check for CI/CD and Kubernetes Probes"""
+    return jsonify({
+        "status": "healthy", 
+        "container": "frontend",
+        "backend_configured": app.config['BACKEND_URL']
+    }), 200
+
 @app.route('/')
 def index():
     backend_url = app.config['BACKEND_URL'] + '/list'
