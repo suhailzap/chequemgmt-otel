@@ -1,4 +1,53 @@
+receivers:
+ otlp:
+   protocols:
+     grpc:
+       endpoint: 0.0.0.0:4317
+     http:
+       endpoint: 0.0.0.0:4318
+ prometheus:
+     config:
+       scrape_configs:
+         - job_name: 'frontend-app'
+           static_configs:
+             - targets: ['frontend:5000']
 
+
+exporters:
+ otlp/jaeger:
+   endpoint: http://jaeger:4317
+   tls:
+     insecure: true
+ debug:
+   verbosity: detailed
+
+ otlphttp/logs:
+   endpoint: "http://loki:3100/otlp"
+   tls:
+     insecure: true
+
+ prometheusremotewrite:
+     endpoint: "http://prometheus:9090/api/v1/write"
+
+
+service:
+ pipelines:
+   traces:
+     receivers: [otlp]
+     exporters: [debug, otlp/jaeger]
+   metrics:
+     receivers: [otlp, prometheus]
+     exporters: [debug, prometheusremotewrite]
+   logs:
+     receivers: [otlp]
+     exporters: [debug, otlphttp/logs]
+
+
+
+
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 receivers:
  otlp:
    protocols:
@@ -45,9 +94,7 @@ service:
 
 
 
-
-
-============================================================================
+# ============================================================================
 # receivers:
 #  otlp:
 #    protocols:
