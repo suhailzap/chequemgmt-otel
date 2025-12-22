@@ -1,0 +1,135 @@
+name: Backend & Frontend CI/CD
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+  workflow_dispatch:
+
+env:
+  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+  DOCKER_HUB_ACCESS_TOKEN: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+jobs:
+
+  #######################
+  # BACKEND PIPELINE
+  #######################
+  backend:
+    name: Build & Push Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build backend JAR
+        run: |
+          cd backend
+          ./mvnw clean package -DskipTests
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          ./mvnw test || exit 1
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKER_HUB_USERNAME }}
+          password: ${{ env.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Build backend Docker image
+        run: |
+          IMAGE_NAME=${{ env.DOCKER_HUB_USERNAME }}/chequebackend
+          TAG=${GITHUB_SHA::8}
+          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$TAG backend
+
+      - name: Test backend Docker image
+        run: |
+          IMAGE_NAME=${{ env.DOCKER_HUB_USERNAME }}/chequebackend
+          TAG=${GITHUB_SHA::8}
+          docker run --rm -d -p 8085:8085 --name test-backend $IMAGE_NAME:$TAG
+          sleep 10
+          curl -f http://localhost:8085/health || exit 1
+          docker stop test-backend
+
+      - name: Push backend image to Docker Hub
+        run: |
+          IMAGE_NAME=${{ env.DOCKER_HUB_USERNAME }}/chequebackend
+          TAG=${GITHUB_SHA::8}
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:$TAG
+
+  #######################
+  # FRONTEND PIPELINE
+  #######################
+  frontend:
+    name: Build & Push Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run frontend tests (optional)
+        run: |
+          cd frontend
+          if [ -d "tests" ] || [ -f "tests.py" ]; then
+            echo "Running frontend tests..."
+            pytest tests/ || exit 1
+          else
+            echo "No frontend tests found, skipping..."
+          fi
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKER_HUB_USERNAME }}
+          password: ${{ env.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Build frontend Docker image
+        run: |
+          IMAGE_NAME=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend
+          TAG=${GITHUB_SHA::8}
+          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$TAG frontend
+
+      - name: Test frontend Docker image
+        run: |
+          IMAGE_NAME=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend
+          TAG=${GITHUB_SHA::8}
+          docker run --rm -d -p 5000:5000 --name test-frontend $IMAGE_NAME:$TAG
+          sleep 10
+          curl -f http://localhost:5000/health || exit 1
+          docker stop test-frontend
+
+      - name: Push frontend image to Docker Hub
+        run: |
+          IMAGE_NAME=${{ env.DOCKER_HUB_USERNAME }}/cheque-frontend
+          TAG=${GITHUB_SHA::8}
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:$TAG
