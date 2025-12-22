@@ -2,60 +2,99 @@
 # import logging
 # import requests
 # import os
-
-
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 import logging
 import requests
 import os
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-
-
-# --- ADD THESE IMPORTS ---
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter
-# -------------------------
+
+# 1. Configure logging
+logging.basicConfig(
+    format='%(levelname)s:%(name)s:%(module)s:%(message)s', 
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Optional: Define a custom metric to track page views
+# 2. Robust Configuration
+# This prevents KeyError by setting a default if the Environment Variable is missing
+app.config['BACKEND_URL'] = os.getenv('BACKEND_URL', 'http://localhost:8085/cheques').rstrip('/')
+
+# 3. Prometheus Metrics
 REQUEST_COUNT = Counter('frontend_page_views_total', 'Total number of views on index')
 
-# ... (Keep your existing logging and app.config code) ...
+# ---------------------------------------------------------
+# ROUTES
+# ---------------------------------------------------------
 
 @app.route('/health')
 def health_check():
-    return jsonify({"status": "healthy", "container": "frontend"}), 200
+    """Health check for CI/CD and Kubernetes Probes"""
+    return jsonify({
+        "status": "healthy", 
+        "container": "frontend",
+        "backend_configured": app.config['BACKEND_URL']
+    }), 200
 
 @app.route('/')
 def index():
-    REQUEST_COUNT.inc() # Increment the metric
-    # ... (Keep your existing index logic) ...
-    backend_url = app.config['BACKEND_URL'] + '/list'
+    REQUEST_COUNT.inc()
+    backend_url = f"{app.config['BACKEND_URL']}/list"
     cheque_data = []
+    
     try:
+        logger.info("Fetching cheques from: %s", backend_url)
         response = requests.get(backend_url, timeout=5)
         if response.status_code == 200:
             cheque_data = response.json()
+        else:
+            logger.error("Backend returned status: %s", response.status_code)
     except Exception as e:
-        logger.error("Error: %s", str(e))
+        logger.error("Error connecting to backend: %s", str(e))
+
     return render_template('index.html', cheque_data=cheque_data)
 
-# ... (Keep your add and delete routes) ...
+@app.route('/add', methods=['POST'])
+def add():
+    chequeNo = request.form.get('chequeNo')
+    approvalGranted = 'true' in request.form.getlist('approvalGranted')
+    payload = {'chequeNo': chequeNo, 'approvalGranted': approvalGranted}
+    
+    backend_url = f"{app.config['BACKEND_URL']}/add"
+    
+    try:
+        response = requests.post(backend_url, params=payload, timeout=5)
+        if response.status_code != 200:
+            logger.error("Failed to add cheque: %s", response.text)
+    except Exception as e:
+        logger.error("Error adding cheque: %s", str(e))
+        
+    return redirect(url_for('index'))
 
-# ---------------------------------------------------------
-# FIXED: METRICS ENDPOINT
-# ---------------------------------------------------------
+@app.route('/delete', methods=['POST'])
+def delete():
+    chequeNo = request.form.get('chequeNo')
+    backend_url = f"{app.config['BACKEND_URL']}/remove"
+    
+    try:
+        response = requests.post(backend_url, data={'chequeNo': chequeNo}, timeout=5)
+        if response.status_code != 200:
+            logger.error("Failed to delete cheque: %s", response.text)
+    except Exception as e:
+        logger.error("Error deleting cheque: %s", str(e))
+
+    return redirect(url_for('index'))
+
 @app.route('/metrics')
 def metrics():
-    """
-    Exposes application metrics for Prometheus scraping.
-    """
+    """Exposes application metrics for Prometheus scraping"""
     return generate_latest(), 200, {'Content-Type': CONTENT_TYPE_LATEST}
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-
-
+    # Use environment variable for port or default to 5000
+    port = int(os.getenv('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
 
 
 
