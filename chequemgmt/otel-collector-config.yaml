@@ -18,6 +18,11 @@ exporters:
    endpoint: http://jaeger:4317
    tls:
      insecure: true
+
+ otlp/tempo:
+   endpoint: http://tempo:4317
+   tls:
+     insecure: true
  debug:
    verbosity: detailed
 
@@ -34,7 +39,7 @@ service:
  pipelines:
    traces:
      receivers: [otlp]
-     exporters: [debug, otlp/jaeger]
+     exporters: [debug, otlp/jaeger, otlp/tempo]
    metrics:
      receivers: [otlp, prometheus]
      exporters: [debug, prometheusremotewrite]
@@ -45,52 +50,54 @@ service:
 
 
 
+
+
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-receivers:
- otlp:
-   protocols:
-     grpc:
-       endpoint: 0.0.0.0:4317
-     http:
-       endpoint: 0.0.0.0:4318
- prometheus:
-     config:
-       scrape_configs:
-         - job_name: 'frontend-app'
-           static_configs:
-             - targets: ['frontend:5000']
+# receivers:
+#  otlp:
+#    protocols:
+#      grpc:
+#        endpoint: 0.0.0.0:4317
+#      http:
+#        endpoint: 0.0.0.0:4318
+#  prometheus:
+#      config:
+#        scrape_configs:
+#          - job_name: 'frontend-app'
+#            static_configs:
+#              - targets: ['frontend:5000']
 
 
-exporters:
- otlp/jaeger:
-   endpoint: http://jaeger:4317
-   tls:
-     insecure: true
- debug:
-   verbosity: detailed
+# exporters:
+#  otlp/jaeger:
+#    endpoint: http://jaeger:4317
+#    tls:
+#      insecure: true
+#  debug:
+#    verbosity: detailed
 
- otlphttp/logs:
-   endpoint: "http://loki:3100/otlp"
-   tls:
-     insecure: true
+#  otlphttp/logs:
+#    endpoint: "http://loki:3100/otlp"
+#    tls:
+#      insecure: true
 
- prometheus:
-     endpoint: "0.0.0.0:8889"
+#  prometheus:
+#      endpoint: "0.0.0.0:8889"
 
 
-service:
- pipelines:
-   traces:
-     receivers: [otlp]
-     exporters: [debug, otlp/jaeger]
-   metrics:
-     receivers: [otlp]
-     exporters: [debug, prometheus]
-   logs:
-     receivers: [otlp]
-     exporters: [debug, otlphttp/logs]
+# service:
+#  pipelines:
+#    traces:
+#      receivers: [otlp]
+#      exporters: [debug, otlp/jaeger]
+#    metrics:
+#      receivers: [otlp]
+#      exporters: [debug, prometheus]
+#    logs:
+#      receivers: [otlp]
+#      exporters: [debug, otlphttp/logs]
 
 
 
