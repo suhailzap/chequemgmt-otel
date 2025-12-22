@@ -3,7 +3,7 @@ name: Frontend CI/CD
 on:
   push:
     paths:
-      - 'frontend/**'
+      - 'chequemgmtfrontend/**'
   workflow_dispatch:
 
 env:
