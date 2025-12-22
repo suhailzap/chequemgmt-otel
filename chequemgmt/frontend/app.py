@@ -80,21 +80,16 @@ def delete():
 
     return redirect(url_for('index'))
 
+
+@app.route('/metrics')
+def metrics():
+    return generate_latest(), 200, {'Content-Type': CONTENT_TYPE_LATEST}
+
+
+
 if __name__ == '__main__':
     # host='0.0.0.0' is required for the container to be reachable
     app.run(host='0.0.0.0', port=5000)
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
