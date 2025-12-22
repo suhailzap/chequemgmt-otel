@@ -1,43 +1,43 @@
 ########################
-# STAGE 1: Download OTel + App Jar
+# STAGE 1: Dependency Cache
 ########################
-FROM eclipse-temurin:21-jre-jammy AS builder
-
+FROM maven:3.9.6-eclipse-temurin-21 AS deps
 WORKDIR /build
-
-# Download OpenTelemetry Java Agent (version pinned for reliability)
-ARG OTEL_VERSION=2.7.0
-ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_VERSION}/opentelemetry-javaagent.jar /build/opentelemetry-javaagent.jar
-
-# Copy application JAR
-COPY target/chequebackend-0.0.1-SNAPSHOT.jar /build/app.jar
-
+COPY pom.xml .
+RUN mvn dependency:go-offline
 
 ########################
-# STAGE 2: Final Runtime Image
+# STAGE 2: Build Application
+########################
+FROM deps AS builder
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+########################
+# STAGE 3: Final Runtime
 ########################
 FROM eclipse-temurin:21-jre-alpine AS runtime
 
-# -------------------------------
-# SECURITY HARDENING
-# -------------------------------
-RUN adduser -D appuser && \
-    apk add --no-cache --upgrade \
-    # Remove compilers, package managers, shells
-    && rm -rf /var/cache/apk/*
+# Security Hardening: Update existing packages and add non-root user
+RUN apk update && apk upgrade && \
+    adduser -D appuser && \
+    rm -rf /var/cache/apk/*
 
 WORKDIR /app
 
-# Copy artifacts from builder
-COPY --from=builder /build/app.jar .
-COPY --from=builder /build/opentelemetry-javaagent.jar .
+# Download OTel Agent
+# ARG OTEL_VERSION=2.7.0
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
+# ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_VERSION}/opentelemetry-javaagent.jar .
 
-# Run as non-root user
+# Copy only the final artifact from builder stage
+COPY --from=builder /build/target/chequebackend-0.0.1-SNAPSHOT.jar app.jar
+
+RUN chown appuser:appuser /app/app.jar /app/opentelemetry-javaagent.jar
+
 USER appuser
 
-# -------------------------------
-# OpenTelemetry config
-# -------------------------------
+# OTel Configuration
 ENV OTEL_SERVICE_NAME=java-backend-service \
     OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317 \
     OTEL_EXPORTER_OTLP_PROTOCOL=grpc \
@@ -47,7 +47,4 @@ ENV OTEL_SERVICE_NAME=java-backend-service \
 
 EXPOSE 8085
 
-ENTRYPOINT ["java", \
-  "-javaagent:/app/opentelemetry-javaagent.jar", \
-  "-jar", "/app/app.jar"]
-
+ENTRYPOINT ["java", "-javaagent:/app/opentelemetry-javaagent.jar", "-jar", "/app/app.jar"]
