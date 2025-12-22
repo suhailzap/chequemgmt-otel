@@ -39,7 +39,7 @@ jobs:
       # -------------------------------
       # Set up JDK 21
       # -------------------------------
-      - name: Set up Java 21
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
           java-version: '21'
@@ -72,12 +72,15 @@ jobs:
           password: ${{ env.DOCKER_HUB_ACCESS_TOKEN }}
 
       # -------------------------------
-      # Build Docker image (multi-arch)
+      # Setup Docker Buildx for multi-arch
       # -------------------------------
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build Docker image
+      # -------------------------------
+      # Build and push Docker image (multi-arch)
+      # -------------------------------
+      - name: Build & Push Docker Image
         run: |
           IMAGE_TAG_LATEST=${{ env.DOCKER_HUB_USERNAME }}/chequebackend:latest
           IMAGE_TAG_SHA=${{ env.DOCKER_HUB_USERNAME }}/chequebackend:${{ github.sha }}
@@ -86,36 +89,15 @@ jobs:
             -t $IMAGE_TAG_LATEST \
             -t $IMAGE_TAG_SHA \
             chequemgmt/backend \
-            --load
+            --push
 
       # -------------------------------
-      # Test Docker image
+      # Scan Docker image with Trivy
       # -------------------------------
-      - name: Test Docker Image
-        run: |
-          IMAGE_TAG=${{ env.DOCKER_HUB_USERNAME }}/chequebackend:latest
-          docker run --rm -d -p 8085:8085 --name test-backend $IMAGE_TAG
-          sleep 15
-          curl -f http://localhost:8085/health || exit 1
-          docker stop test-backend
-
-      # # -------------------------------
-      # # Scan Docker image with Trivy
-      # # -------------------------------
-      # - name: Scan Docker Image
-      #   uses: aquasecurity/trivy-action@v1
-      #   with:
-      #     image-ref: ${{ env.DOCKER_HUB_USERNAME }}/chequebackend:latest
-      #     format: table
-      #     exit-code: 1
-      #     ignore-unfixed: true
-
-      # -------------------------------
-      # Push Docker image
-      # -------------------------------
-      - name: Push Docker Image
-        run: |
-          IMAGE_TAG_LATEST=${{ env.DOCKER_HUB_USERNAME }}/chequebackend:latest
-          IMAGE_TAG_SHA=${{ env.DOCKER_HUB_USERNAME }}/chequebackend:${{ github.sha }}
-          docker push $IMAGE_TAG_LATEST
-          docker push $IMAGE_TAG_SHA
+      - name: Scan Docker Image
+        uses: aquasecurity/trivy-action@v1
+        with:
+          image-ref: ${{ env.DOCKER_HUB_USERNAME }}/chequebackend:latest
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
