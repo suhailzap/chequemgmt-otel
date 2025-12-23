@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 import logging
 import requests
 import os
@@ -18,9 +19,10 @@ resource = Resource(attributes={"service.name": "flask-app"})
 trace.set_tracer_provider(TracerProvider(resource=resource))
 tracer = trace.get_tracer(__name__)
 
+otel_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317")
 
+otlp_exporter = OTLPSpanExporter(endpoint=otel_endpoint, insecure=True)
 
-otlp_exporter = OTLPSpanExporter(endpoint="OTEL_EXPORTER_OTLP_ENDPOINT", insecure=True)
 span_processor = BatchSpanProcessor(otlp_exporter)
 trace.get_tracer_provider().add_span_processor(span_processor)
 
